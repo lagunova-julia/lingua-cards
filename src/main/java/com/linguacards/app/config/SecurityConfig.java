@@ -40,6 +40,9 @@ public class SecurityConfig {
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/users").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
+                        .requestMatchers("/api/learn").authenticated()
+                        .requestMatchers("/api/learn/**").authenticated()
+                        .requestMatchers("/api/languages").authenticated()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2ResourceServer((rs) -> rs
