@@ -5,7 +5,9 @@ import com.linguacards.app.dto.user.UserDTO;
 import com.linguacards.app.dto.user.UserUpdateDTO;
 import com.linguacards.app.exception.ResourceNotFoundException;
 import com.linguacards.app.mapper.UserMapper;
+import com.linguacards.app.model.User;
 import com.linguacards.app.repository.UserRepository;
+import com.linguacards.app.service.models.UserServiceModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -27,36 +29,36 @@ public class UserService {
 
     private final PasswordEncoder passwordEncoder;
 
-    public List<UserDTO> getAll() {
-        var users = userRepository.findAll();
-        var usersDTOs = users.stream()
-                .map(userMapper::map)
+    public List<UserServiceModel> getAll() {
+        List<User> users = userRepository.findAll();
+        return users.stream()
+                .map(userMapper::toServiceModel)
                 .toList();
-        return usersDTOs;
     }
 
-    public UserDTO create(UserCreateDTO userData) {
-        var user = userMapper.map(userData);
-        user.setPassword(passwordEncoder.encode(userData.getPassword()));
-        user.setRoles(Set.of("ROLE_USER"));
-        userRepository.save(user);
-        return userMapper.map(user);
+    public UserServiceModel create(UserCreateDTO userData) {
+        UserServiceModel user = userMapper.toServiceModel(userData);
+        User entity = userMapper.toEntity(user);
+        entity.setPassword(passwordEncoder.encode(userData.getPassword()));
+        entity.setRoles(Set.of("ROLE_USER"));
+        userRepository.save(entity);
+        return userMapper.toServiceModel(entity);
     }
 
-    public UserDTO show(Long id) {
+    public UserServiceModel show(Long id) {
         var user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Not Found: " + id));
 
-        return userMapper.map(user);
+        return userMapper.toServiceModel(user);
     }
 
-    public UserDTO update(UserUpdateDTO userData, Long id) {
+    public UserServiceModel update(UserUpdateDTO userData, Long id) {
         var user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User " + id + " not found"));
 
         userMapper.update(userData, user);
         userRepository.save(user);
-        return userMapper.map(user);
+        return userMapper.toServiceModel(user);
     }
 
     public void delete(Long id) throws ResponseStatusException {

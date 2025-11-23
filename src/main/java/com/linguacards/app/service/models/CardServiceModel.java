@@ -1,5 +1,6 @@
-package com.linguacards.app.dto;
+package com.linguacards.app.service.models;
 
+import com.linguacards.app.model.ProgressStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,10 +10,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CardDTO {
+public class CardServiceModel {
     private Long cardId;
     private String word;
     private String translation;
     private String fromLang;
     private String toLang;
+//    private ProgressStatus status;
 }

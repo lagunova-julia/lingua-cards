@@ -3,7 +3,9 @@ package com.linguacards.app.controller;
 import com.linguacards.app.dto.user.UserCreateDTO;
 import com.linguacards.app.dto.user.UserDTO;
 import com.linguacards.app.dto.user.UserUpdateDTO;
+import com.linguacards.app.mapper.UserMapper;
 import com.linguacards.app.service.UserService;
+import com.linguacards.app.service.models.UserServiceModel;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -28,10 +30,14 @@ import java.util.List;
 @RequestMapping("/api/users")
 public class UserController {
     private final UserService userService;
+    private final UserMapper userMapper;
 
     @GetMapping(path = "")
     public ResponseEntity<List<UserDTO>> index() {
-        var users = userService.getAll();
+        List<UserDTO> users = userService.getAll()
+                .stream()
+                .map(userMapper::toDTO)
+                .toList();
 
         HttpHeaders headers = new HttpHeaders();
         headers.add("X-Total-Count", String.valueOf(users.size()));
@@ -42,20 +48,23 @@ public class UserController {
     @PostMapping(path = "")
     @ResponseStatus(HttpStatus.CREATED)
     public UserDTO create(@Valid @RequestBody UserCreateDTO userData) {
-        return userService.create(userData);
+        UserServiceModel usm = userService.create(userData);
+        return userMapper.toDTO(usm);
     }
 
     @GetMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.OK)
     public UserDTO show(@PathVariable Long id) {
-        return userService.show(id);
+        UserServiceModel usm = userService.show(id);
+        return userMapper.toDTO(usm);
     }
 
     @PutMapping(path = "/{id}")
     @PreAuthorize("hasRole('ADMIN') or #id == @userService.getIdByEmail(authentication.name)")
     @ResponseStatus(HttpStatus.OK)
     public UserDTO update(@RequestBody @Valid UserUpdateDTO userData, @PathVariable Long id) {
-        return userService.update(userData, id);
+        UserServiceModel usm = userService.update(userData, id);
+        return userMapper.toDTO(usm);
     }
 
     @DeleteMapping(path = "/{id}")

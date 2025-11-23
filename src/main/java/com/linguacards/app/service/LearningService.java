@@ -4,6 +4,8 @@ import com.linguacards.app.dto.CardDTO;
 import com.linguacards.app.dto.UserProgressDTO;
 import com.linguacards.app.exception.NoCardsAvailableException;
 import com.linguacards.app.exception.ResourceNotFoundException;
+import com.linguacards.app.mapper.CardMapper;
+import com.linguacards.app.mapper.UserProgressMapper;
 import com.linguacards.app.model.ProgressStatus;
 import com.linguacards.app.model.Translation;
 import com.linguacards.app.model.User;
@@ -11,9 +13,13 @@ import com.linguacards.app.model.UserProgress;
 import com.linguacards.app.repository.TranslationRepository;
 import com.linguacards.app.repository.UserProgressRepository;
 import com.linguacards.app.repository.UserRepository;
+import com.linguacards.app.service.models.CardServiceModel;
+import com.linguacards.app.service.models.UserProgressServiceModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -22,49 +28,43 @@ public class LearningService {
     private final TranslationRepository translationRepository;
     private final UserProgressRepository userProgressRepository;
     private final UserRepository userRepository;
-    public CardDTO getNextCard(Long userId, String fromLang, String toLang) {
-        Translation randomCard = translationRepository
+    private final CardMapper cardMapper;
+    private final UserProgressMapper userProgressMapper;
+    public CardServiceModel getNextCard(Long userId, String fromLang, String toLang) {
+        Translation entity = translationRepository
                 .findRandomUnlearnedByUserAndLanguages(userId, fromLang, toLang)
                 .orElseThrow(() -> new NoCardsAvailableException("No cards to learn"));
 
-        return buildCardDTO(randomCard);
+        return cardMapper.toServiceModel(entity);
     }
 
-    private CardDTO buildCardDTO(Translation card) {
-        return CardDTO.builder()
-                .cardId(card.getId())
-                .word(card.getWordFrom().getText())
-                .translation(card.getWordTo().getText())
-                .fromLang(card.getWordFrom().getLanguage().getCode())
-                .toLang(card.getWordTo().getLanguage().getCode())
-                .build();
-    }
+    public UserProgressServiceModel markAsLearned(Long userId, Long cardId) {
+        validateUserAndCard(userId, cardId);
 
-    public UserProgressDTO markAsLearned(Long userId, Long cardId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("There is no user with ID " + userId));
-
-        Translation translation = translationRepository.findById(cardId)
-                .orElseThrow(() -> new ResourceNotFoundException("There is no card with ID " + cardId));
-
-        UserProgress progress = UserProgress.builder()
-                .user(user)
-                .translation(translation)
+        UserProgressServiceModel progressModel = UserProgressServiceModel.builder()
+                .userId(userId)
+                .translationId(cardId)
                 .status(ProgressStatus.LEARNED)
                 .successCount(1)
+                .lastReviewed(LocalDateTime.now())
                 .build();
 
-        userProgressRepository.save(progress);
-        return buildUserProgressDTO(progress);
+        UserProgress userProgress = userProgressMapper.toEntity(progressModel);
+
+        User user = userRepository.getReferenceById(userId);
+        Translation translation = translationRepository.getReferenceById(cardId);
+        userProgress.setUser(user);
+        userProgress.setTranslation(translation);
+        UserProgress savedEntity = userProgressRepository.save(userProgress);
+
+        return userProgressMapper.toServiceModel(savedEntity);
     }
 
-    private UserProgressDTO buildUserProgressDTO(UserProgress userProgress) {
-        return UserProgressDTO.builder()
-                .userProgressId(userProgress.getId())
-                .userId(userProgress.getUser().getId())
-                .translationId(userProgress.getTranslation().getId())
-                .status(userProgress.getStatus())
-                .build();
-    }
+    private void validateUserAndCard(Long userId, Long cardId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("There is no user with ID " + userId));
 
+        translationRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("There is no card with ID " + cardId));
+    }
 }
